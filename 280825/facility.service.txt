@@ -1,0 +1,202 @@
+import { gql } from '@apollo/client';
+
+export const CREATE_FACILITY_SERVICELINE_MUTATION = gql`
+  mutation CreateFacilityServiceline($input: CreateFacilityServicelineInput!) {
+    createFacilityServiceline(input: $input) {
+      status
+      message
+      data
+    }
+  }
+`;
+
+export const UPDATE_FACILITY_SERVICELINE_MUTATION = gql`
+  mutation UpdateFacilityServiceline($input: UpdateFacilityServicelineInput!) {
+    updateFacilityServiceline(input: $input) {
+      status
+      message
+      statusCode
+      data
+      error
+    }
+  }
+`;
+
+export const GET_ALL_FACILITY_SERVICELINES_QUERY = gql`
+  query GetAllFacilityServicelines {
+    getAllFacilityServicelines {
+      status
+      message
+      statusCode
+      data
+      error
+    }
+  }
+`;
+
+export const LIST_SERVICELINES_QUERY = gql`
+  query ListServicelines {
+    listServicelines {
+      status
+      message
+      statusCode
+      data
+      error
+    }
+  }
+`;
+
+// TypeScript interfaces for the create mutation
+export interface CreateFacilityServicelineInput {
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+}
+
+export interface CreateFacilityServicelineResponse {
+  status: string;
+  message: string;
+  data: CreateFacilityServicelineData;
+}
+
+export interface CreateFacilityServicelineData {
+  name: string;
+  slug: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: any[];
+  status: string;
+  _id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateFacilityServicelineMutationData {
+  createFacilityServiceline: CreateFacilityServicelineResponse;
+}
+
+// TypeScript interfaces for the update mutation
+export interface UpdateFacilityServicelineInput {
+  id: string;
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+}
+
+export interface UpdateFacilityServicelineResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: UpdateFacilityServicelineData;
+  error: string | null;
+}
+
+export interface UpdateFacilityServicelineData {
+  _id: string;
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: any[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface UpdateFacilityServicelineMutationData {
+  updateFacilityServiceline: UpdateFacilityServicelineResponse;
+}
+
+// TypeScript interfaces for the query
+export interface GetAllFacilityServicelinesResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: FacilityServicelineData[];
+  error: string | null;
+}
+
+export interface FacilityServicelineData {
+  _id: string;
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface GetAllFacilityServicelinesData {
+  getAllFacilityServicelines: GetAllFacilityServicelinesResponse;
+}
+
+// TypeScript interfaces for the ListServicelines query
+export interface ListServicelinesResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: ServiceLineData[];
+  error: string | null;
+}
+
+export interface ServiceLineData {
+  _id: string;
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: any[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface ListServicelinesData {
+  listServicelines: ListServicelinesResponse;
+}
+
+
+
+// TypeScript interfaces for the UpdateServicelineMapping mutation
+export const UPDATE_SERVICELINE_MAPPING_MUTATION = gql`
+  mutation UpdateServicelineMapping($input: UpdateServicelineMappingInput!) {
+    updateServicelineMapping(input: $input) {
+      status
+      message
+      statusCode
+      data
+      error
+    }
+  }
+`;
+
+export interface UpdateServicelineMappingInput {
+  id: string;
+  serviceLineMapping: string[];
+}
+
+export interface UpdateServicelineMappingResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: UpdateServicelineMappingData;
+  error: string | null;
+}
+
+export interface UpdateServicelineMappingData {
+  _id: string;
+  name: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface UpdateServicelineMappingMutationData {
+  updateServicelineMapping: UpdateServicelineMappingResponse;
+}

@@ -1,0 +1,767 @@
+"use client"
+import React, { useState } from 'react';
+import {
+  Box,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Checkbox,
+  Switch,
+  IconButton,
+  Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  OutlinedInput,
+  Chip,
+  TextField,
+  FormControlLabel,
+  Radio,
+  RadioGroup,
+  CircularProgress
+} from '@mui/material';
+import { AddOutlined, Edit, AccountTree, Close } from '@mui/icons-material';
+import DashboardLayout from '../../components/layout/DashboardLayout';
+import { useMutation, useQuery } from '@apollo/client';
+import { toast } from 'react-toastify';
+import {
+  CREATE_FACILITY_SERVICELINE_MUTATION,
+  UPDATE_FACILITY_SERVICELINE_MUTATION,
+  GET_ALL_FACILITY_SERVICELINES_QUERY,
+  LIST_SERVICELINES_QUERY,
+  UPDATE_SERVICELINE_MAPPING_MUTATION,
+  CreateFacilityServicelineInput,
+  CreateFacilityServicelineMutationData,
+  UpdateFacilityServicelineInput,
+  UpdateFacilityServicelineMutationData,
+  GetAllFacilityServicelinesData,
+  FacilityServicelineData,
+  ListServicelinesData,
+  ServiceLineData,
+  UpdateServicelineMappingInput,
+  UpdateServicelineMappingMutationData
+} from '../../graphql/facility.service';
+
+const statusStyles: any = {
+  active: {
+    backgroundColor: '#e8f5e8',
+    color: '#2e7d32',
+    fontWeight: 500,
+    borderRadius: '4px',
+    padding: '4px 8px',
+    width: '80px',
+    textAlign: 'center',
+    fontSize: '12px',
+    margin: '0 auto',
+    display: 'inline-block'
+  },
+  inactive: {
+    backgroundColor: '#ffebee',
+    color: '#d32f2f',
+    fontWeight: 500,
+    borderRadius: '4px',
+    padding: '4px 8px',
+    width: '80px',
+    textAlign: 'center',
+    fontSize: '12px',
+    margin: '0 auto',
+    display: 'inline-block'
+  }
+};
+
+// Sample data removed - now using real API data
+
+// Service lines will be fetched from API
+
+const FacilityServicePage = () => {
+  // Fetch facility servicelines data from API
+  const { data: queryData, loading: queryLoading, refetch } = useQuery<GetAllFacilityServicelinesData>(
+    GET_ALL_FACILITY_SERVICELINES_QUERY
+  );
+
+  // Fetch service lines for mapping dropdown
+  const { data: serviceLinesData, loading: serviceLinesLoading } = useQuery<ListServicelinesData>(
+    LIST_SERVICELINES_QUERY
+  );
+
+  // Local state for data updates
+  const [data, setData] = useState<any[]>([]);
+
+  // Update local data when API data changes
+  React.useEffect(() => {
+    if (queryData?.getAllFacilityServicelines?.data) {
+      const transformedData = queryData.getAllFacilityServicelines.data.map((item: FacilityServicelineData) => {
+        // Convert service line mapping IDs to names for better readability
+        const mappingNames = item.serviceLineMapping.length > 0 
+          ? item.serviceLineMapping
+              .map(mappingId => {
+                const mappedItem = queryData.getAllFacilityServicelines.data.find(
+                  (dataItem: FacilityServicelineData) => dataItem._id === mappingId
+                );
+                return mappedItem?.name || mappingId;
+              })
+              .filter(name => name && name.trim() !== '')
+              .join(', ')
+          : '';
+        
+        return {
+          _id: item._id,
+          name: item.name,
+          isFacility: item.isFacility,
+          isServiceLine: item.isServiceline,
+          status: item.status,
+          mapping: mappingNames,
+          // Keep the original IDs for API calls
+          serviceLineMappingIds: item.serviceLineMapping
+        };
+      });
+      setData(transformedData);
+    } else {
+      setData([]);
+    }
+  }, [queryData]);
+  const [mappingDialogOpen, setMappingDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<{
+    _id: string;
+    name: string;
+    isFacility: boolean;
+    isServiceLine: boolean;
+    status: string;
+    mapping: string;
+  } | null>(null);
+  const [selectedServiceLines, setSelectedServiceLines] = useState<string[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  
+  // Form state for edit/add dialog
+  const [formData, setFormData] = useState({
+    name: '',
+    isFacility: false,
+    isServiceLine: false
+  });
+
+  // GraphQL mutation for creating facility serviceline
+  const [createFacilityServiceline, { loading: createLoading }] = useMutation<CreateFacilityServicelineMutationData>(
+    CREATE_FACILITY_SERVICELINE_MUTATION,
+    {
+      onCompleted: (mutationData) => {
+        if (mutationData?.createFacilityServiceline?.status === 'success') {
+          toast.success(mutationData.createFacilityServiceline.message || 'Facility serviceline created successfully');
+          
+          // Refetch data from API to get the latest data
+          refetch();
+          
+          // Close dialog and reset form
+          setEditDialogOpen(false);
+          setSelectedItem(null);
+          setFormData({ name: '', isFacility: false, isServiceLine: false });
+        } else {
+          toast.error(mutationData?.createFacilityServiceline?.message || 'Failed to create facility serviceline');
+        }
+      },
+      onError: (error) => {
+        console.error('Error creating facility serviceline:', error);
+        toast.error(`Failed to create facility serviceline: ${error.message}`);
+      }
+    }
+  );
+
+  const [updateFacilityServiceline, { loading: updateLoading }] = useMutation<UpdateFacilityServicelineMutationData>(
+    UPDATE_FACILITY_SERVICELINE_MUTATION,
+    {
+      onCompleted: (mutationData) => {
+        if (mutationData?.updateFacilityServiceline?.status === 'success') {
+          toast.success(mutationData.updateFacilityServiceline.message || 'Facility serviceline updated successfully');
+          
+          // Refetch data from API to get the latest data
+          refetch();
+          
+          // Close dialog and reset form
+          setEditDialogOpen(false);
+          setSelectedItem(null);
+          setFormData({ name: '', isFacility: false, isServiceLine: false });
+        } else {
+          toast.error(mutationData?.updateFacilityServiceline?.message || 'Failed to update facility serviceline');
+        }
+      },
+      onError: (error) => {
+        console.error('Error updating facility serviceline:', error);
+        toast.error(`Failed to update facility serviceline: ${error.message}`);
+      }
+    }
+  );
+
+  // GraphQL mutation for updating service line mapping
+  const [updateServicelineMapping, { loading: updateMappingLoading }] = useMutation<UpdateServicelineMappingMutationData>(
+    UPDATE_SERVICELINE_MAPPING_MUTATION,
+    {
+      onCompleted: (mutationData) => {
+        if (mutationData?.updateServicelineMapping?.status === 'success') {
+          toast.success(mutationData.updateServicelineMapping.message || 'Service line mapping updated successfully');
+          
+          // Refetch data from API to get the latest data
+          refetch();
+          
+          // Close dialog and reset state
+          setMappingDialogOpen(false);
+          setSelectedItem(null);
+          setSelectedServiceLines([]);
+        } else {
+          toast.error(mutationData?.updateServicelineMapping?.message || 'Failed to update service line mapping');
+        }
+      },
+      onError: (error) => {
+        console.error('Error updating service line mapping:', error);
+        toast.error(`Failed to update service line mapping: ${error.message}`);
+      }
+    }
+  );
+
+  const handleEdit = (id: string) => {
+    const item = data.find(d => d._id === id);
+    if (item) {
+      setSelectedItem(item);
+      setFormData({
+        name: item.name,
+        isFacility: item.isFacility,
+        isServiceLine: item.isServiceLine
+      });
+      setIsEditMode(true);
+      setEditDialogOpen(true);
+    }
+  };
+
+  const handleMapping = (id: string) => {
+    const item = data.find(d => d._id === id);
+    if (item) {
+      setSelectedItem(item);
+      
+      // Initialize selected service lines with current mapping names
+      if (item.mapping && item.mapping !== '-') {
+        // Split the mapping names and set them as selected
+        setSelectedServiceLines(item.mapping.split(', ').filter(name => name.trim() !== ''));
+      } else {
+        setSelectedServiceLines([]);
+      }
+      
+      setMappingDialogOpen(true);
+    }
+  };
+
+  const handleAddNew = () => {
+    setSelectedItem(null);
+    setFormData({
+      name: '',
+      isFacility: false,
+      isServiceLine: false
+    });
+    setIsEditMode(false);
+    setEditDialogOpen(true);
+  };
+
+  const handleStatusToggle = (id: string) => {
+    setData(prev => prev.map(item => 
+      item._id === id ? { 
+        ...item, 
+        status: item.status === 'active' ? 'inactive' : 'active' 
+      } : item
+    ));
+  };
+
+  const handleCheckboxChange = (id: string, field: 'isFacility' | 'isServiceLine') => {
+    setData(prev => prev.map(item => 
+      item._id === id ? { ...item, [field]: !item[field] } : item
+    ));
+  };
+
+  const handleSaveMapping = () => {
+    if (selectedItem) {
+      // Get the IDs of selected service lines from the listServicelines API
+      const selectedServiceLineIds = selectedServiceLines.map(serviceLineName => {
+        const serviceLine = serviceLinesData?.listServicelines?.data?.find(
+          (line: ServiceLineData) => line.name === serviceLineName
+        );
+        return serviceLine?._id;
+      }).filter(id => id); // Filter out undefined IDs
+
+      if (selectedServiceLineIds.length === 0) {
+        toast.error('Please select at least one service line');
+        return;
+      }
+
+      const input: UpdateServicelineMappingInput = {
+        id: selectedItem._id,
+        serviceLineMapping: selectedServiceLineIds
+      };
+
+      updateServicelineMapping({ variables: { input } });
+    }
+  };
+
+  const handleCancelMapping = () => {
+    setMappingDialogOpen(false);
+    setSelectedItem(null);
+    setSelectedServiceLines([]);
+  };
+
+  const handleSaveEdit = () => {
+    if (isEditMode && selectedItem) {
+      // Update existing facility serviceline via GraphQL mutation
+      if (!formData.name.trim()) {
+        toast.error('Name is required');
+        return;
+      }
+      
+      console.log('Selected item for update:', selectedItem);
+      console.log('Selected item _id:', selectedItem._id);
+      
+      if (!selectedItem._id) {
+        toast.error('Item ID is missing. Please try again.');
+        return;
+      }
+      
+      // Validate MongoDB ObjectId format (24 character hex string)
+      if (!/^[0-9a-fA-F]{24}$/.test(selectedItem._id)) {
+        toast.error('Invalid item ID format. This item cannot be updated.');
+        console.error('Invalid ObjectId format:', selectedItem._id);
+        return;
+      }
+      
+      console.log('Update input:', {
+        id: selectedItem._id,
+        name: formData.name.trim(),
+          isFacility: formData.isFacility,
+        isServiceline: formData.isServiceLine
+      });
+      
+      const input: UpdateFacilityServicelineInput = {
+        id: selectedItem._id,
+        name: formData.name.trim(),
+        isFacility: formData.isFacility,
+        isServiceline: formData.isServiceLine
+      };
+      updateFacilityServiceline({ variables: { input } });
+    } else {
+      // Create new facility serviceline via GraphQL mutation
+      if (!formData.name.trim()) {
+        toast.error('Name is required');
+        return;
+      }
+      
+      const input: CreateFacilityServicelineInput = {
+        name: formData.name.trim(),
+        isFacility: formData.isFacility,
+        isServiceline: formData.isServiceLine
+      };
+      
+      createFacilityServiceline({ variables: { input } });
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditDialogOpen(false);
+    setSelectedItem(null);
+    setFormData({ name: '', isFacility: false, isServiceLine: false });
+  };
+
+  const formatStatus = (s: string) => (s === 'active' ? 'Active' : 'Inactive');
+
+  return (
+    <DashboardLayout>
+      <Box>
+        {/* Header */}
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+          <Box>
+            <Typography variant="h5" fontWeight={600} fontFamily={'var(--font-inter), sans-serif'}>
+              Facility Management
+            </Typography>
+            <Typography variant="subtitle1" color="#6c757d" fontFamily={'var(--font-inter), sans-serif'}>
+              Manage facilities and service lines
+            </Typography>
+          </Box>
+          <Button 
+            onClick={handleAddNew} 
+            variant="contained" 
+            size="large" 
+            sx={{
+              background: 'linear-gradient(90deg, #408bff 0%, #3a7de6 100%)',
+              textTransform: 'none',
+              letterSpacing: '0.5px',
+              fontWeight: 500,
+              fontFamily: 'var(--font-inter), sans-serif',
+              borderRadius: '4px',
+              padding: '8px 24px',
+              '&:hover': {
+                background: 'linear-gradient(90deg, #3a7de6 0%, #2e6bc7 100%)',
+              }
+            }}
+          >
+            <AddOutlined sx={{ mr: 1 }} />
+            Add Facility ServiceLines
+          </Button>
+        </Box>
+
+        <Box sx={{ border: '1px solid #e4e5e7', borderRadius: '10px', padding: 3, backgroundColor: '#fff' }}>
+                     <TableContainer style={{ borderRadius: '12px', overflow: 'hidden' }} sx={{ overflowX: 'auto' }}>
+                         <Table sx={{ minWidth: 800 }}>
+              <TableHead sx={{ backgroundColor: '#f5f9ff' }}>
+                <TableRow>
+                  <TableCell><strong>Name</strong></TableCell>
+                  <TableCell align="center"><strong>isFacility</strong></TableCell>
+                  <TableCell align="center"><strong>isServiceLine</strong></TableCell>
+                  <TableCell align="center"><strong>Status</strong></TableCell>
+                  <TableCell sx={{ minWidth: '150px' }} align="center"><strong>Mapping</strong></TableCell>
+                  <TableCell align="center"><strong>Actions</strong></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {queryLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                        <CircularProgress />
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ) : data.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
+                      <Typography variant="h6" color="#6c757d" fontWeight={600}>
+                        No Record Found
+                      </Typography>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.map((item) => (
+                    <TableRow key={item._id}>
+                    <TableCell>{item.name}</TableCell>
+                    <TableCell align="center">
+                      <Checkbox
+                        checked={item.isFacility}
+                          onChange={() => handleCheckboxChange(item._id, 'isFacility')}
+                        sx={{
+                          color: '#408bff',
+                          '&.Mui-checked': {
+                            color: '#408bff',
+                          },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Checkbox
+                        checked={item.isServiceLine}
+                          onChange={() => handleCheckboxChange(item._id, 'isServiceLine')}
+                        sx={{
+                          color: '#408bff',
+                          '&.Mui-checked': {
+                            color: '#408bff',
+                          },
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Box sx={statusStyles[item.status]}>{formatStatus(item.status)}</Box>
+                    </TableCell>
+                                             <TableCell sx={{ minWidth: '150px' }} align="center">
+                         {item.mapping || '-'}
+                       </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Edit">
+                          <IconButton onClick={() => handleEdit(item._id)} aria-label="Edit facility">
+                          <Edit style={{ fontSize: '25px', color: '#408bff' }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="View Mapping">
+                          <IconButton onClick={() => handleMapping(item._id)} aria-label="View mapping">
+                          <AccountTree style={{ fontSize: '25px', color: '#10b981' }} />
+                        </IconButton>
+                      </Tooltip>
+                      <Switch
+                        checked={item.status === 'active'}
+                        color="primary"
+                          onChange={() => handleStatusToggle(item._id)}
+                      />
+                    </TableCell>
+                  </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+
+        {/* Edit/Add Dialog */}
+        <Dialog open={editDialogOpen} onClose={handleCancelEdit} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', position: 'relative' }}>
+            {isEditMode ? 'Edit Facility/ServiceLine' : 'Add Facility/ServiceLine'}
+            <IconButton
+              onClick={handleCancelEdit}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: '#666'
+              }}
+            >
+              <Close />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ p: 3 }}>
+            <TextField
+              fullWidth
+              label="Name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              disabled={createLoading || updateLoading}
+              sx={{ 
+                mb: 2,
+                mt: 2,
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: '8px',
+                  minHeight: '56px',
+                },
+                '& .MuiInputLabel-root': {
+                  fontSize: '1rem',
+                },
+                '& .MuiOutlinedInput-input': {
+                  padding: '16px 14px',
+                }
+              }}
+            />
+            
+            <Box sx={{ display: 'flex', gap: 2, mb: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.isFacility}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isFacility: e.target.checked }))}
+                    disabled={createLoading || updateLoading}
+                    sx={{
+                      color: '#408bff',
+                      '&.Mui-checked': {
+                        color: '#408bff',
+                      },
+                    }}
+                  />
+                }
+                label="isFacility"
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={formData.isServiceLine}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isServiceLine: e.target.checked }))}
+                    disabled={createLoading || updateLoading}
+                    sx={{
+                      color: '#408bff',
+                      '&.Mui-checked': {
+                        color: '#408bff',
+                      },
+                    }}
+                  />
+                }
+                label="isServiceLine"
+              />
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ p: 3, justifyContent: 'flex-end', gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancelEdit}
+              disabled={createLoading || updateLoading}
+              sx={{
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                color: '#408bff',
+                borderColor: '#408bff',
+                px: 3,
+                py: 1,
+                borderRadius: '4px',
+                '&:hover': { 
+                  backgroundColor: 'rgba(64, 139, 255, 0.04)', 
+                  borderColor: '#408bff' 
+                },
+                '&:disabled': {
+                  color: '#ccc',
+                  borderColor: '#ccc',
+                  cursor: 'not-allowed'
+                }
+              }}
+            >
+              CANCEL
+            </Button>
+            <Button 
+              onClick={handleSaveEdit} 
+              variant="contained" 
+              disabled={createLoading || updateLoading}
+              sx={{
+                background: '#408bff',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                px: 3,
+                py: 1,
+                borderRadius: '4px',
+                '&:hover': {
+                  background: '#3a7de6',
+                },
+                '&:disabled': {
+                  background: '#ccc',
+                  cursor: 'not-allowed'
+                }
+              }}
+            >
+              {(createLoading || updateLoading) ? (
+                <>
+                  <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                  SAVING...
+                </>
+              ) : (
+                'SAVE'
+              )}
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Mapping Dialog */}
+        <Dialog open={mappingDialogOpen} onClose={handleCancelMapping} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ fontWeight: 700, textAlign: 'center', position: 'relative' }}>
+            {selectedItem?.name}
+            <IconButton
+              onClick={handleCancelMapping}
+              sx={{
+                position: 'absolute',
+                right: 8,
+                top: 8,
+                color: '#666'
+              }}
+            >
+              <Close />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ pt: 1 }}>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+              Add Service Line Mapping
+            </Typography>
+            
+            <FormControl fullWidth sx={{ mt: 1.5 }}>
+              <InputLabel shrink sx={{
+                fontSize: '0.95rem',
+                color: '#9ca3af',
+                '&.Mui-focused': { color: '#9ca3af' },
+                transform: 'translate(14px, 16px) scale(1)',
+                '&.MuiInputLabel-shrink': {
+                  transform: 'translate(14px, -8px) scale(0.85)',
+                  backgroundColor: '#fff',
+                  px: 0.5,
+                },
+              }}>
+                Select Service Lines
+              </InputLabel>
+              <Select
+                multiple
+                value={selectedServiceLines}
+                onChange={(e) => setSelectedServiceLines(e.target.value as string[])}
+                displayEmpty
+                renderValue={(selected) => {
+                  if (selected.length === 0) {
+                    return <span style={{ color: '#9ca3af' }}>Choose Service Lines</span>;
+                  }
+                  return selected.join(', ');
+                }}
+                MenuProps={{
+                  disableScrollLock: true,
+                  disablePortal: true,
+                  PaperProps: { sx: { maxHeight: 250 } },
+                  anchorOrigin: { vertical: 'bottom', horizontal: 'left' },
+                  transformOrigin: { vertical: 'top', horizontal: 'left' },
+                }}
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: '12px',
+                    backgroundColor: '#fff',
+                    fontSize: '1rem',
+                    minHeight: '56px',
+                    '& fieldset': { borderColor: '#a8a8a8' },
+                    '&:hover fieldset': { borderColor: '#808080' },
+                    '&.Mui-focused fieldset': { borderColor: '#4285F4' },
+                  },
+                  '& .MuiOutlinedInput-input': { padding: '14px 10px' },
+                }}
+              >
+                                 {serviceLinesLoading ? (
+                   <MenuItem disabled>
+                     <CircularProgress size={16} sx={{ mr: 1 }} />
+                     Loading service lines...
+                   </MenuItem>
+                 ) : serviceLinesData?.listServicelines?.data?.length === 0 ? (
+                   <MenuItem disabled>No service lines available</MenuItem>
+                 ) : (
+                   serviceLinesData?.listServicelines?.data?.map((line: ServiceLineData) => (
+                     <MenuItem key={line._id} value={line.name}>
+                       {line.name}
+                  </MenuItem>
+                   ))
+                 )}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions sx={{ p: 2, gap: 1 }}>
+            <Button
+              variant="outlined"
+              onClick={handleCancelMapping}
+              sx={{
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                color: '#408bff',
+                borderColor: '#408bff',
+                px: 3,
+                '&:hover': { backgroundColor: 'rgba(64, 139, 255, 0.04)', borderColor: '#408bff' },
+              }}
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSaveMapping} 
+              variant="contained" 
+               disabled={updateMappingLoading}
+              sx={{
+                background: 'linear-gradient(90deg, #408bff 0%, #3a7de6 100%)',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                px: 3,
+                '&:hover': {
+                  background: 'linear-gradient(90deg, #3a7de6 0%, #2e6bc7 100%)',
+                 },
+                 '&:disabled': {
+                   background: '#ccc',
+                   cursor: 'not-allowed'
+                 }
+               }}
+             >
+               {updateMappingLoading ? (
+                 <>
+                   <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                   SAVING...
+                 </>
+               ) : (
+                 'Save'
+               )}
+            </Button>
+          </DialogActions>
+        </Dialog>
+      </Box>
+    </DashboardLayout>
+  );
+};
+
+export default FacilityServicePage;

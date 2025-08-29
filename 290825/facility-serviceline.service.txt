@@ -1,0 +1,40 @@
+import { gql } from '@apollo/client';
+
+// Query to get all facility servicelines
+export const GET_ALL_FACILITY_SERVICELINES_QUERY = gql`
+  query GetAllFacilityServicelines {
+    getAllFacilityServicelines {
+      status
+      message
+      statusCode
+      data 
+      error
+    }
+  }
+`;
+
+// Interfaces for the API response
+export interface FacilityServicelineData {
+  _id: string;
+  name: string;
+  slug: string;
+  isFacility: boolean;
+  isServiceline: boolean;
+  serviceLineMapping: string[];
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  __v: number;
+}
+
+export interface GetAllFacilityServicelinesResponse {
+  status: string;
+  message: string;
+  statusCode: number;
+  data: FacilityServicelineData[];
+  error: string | null;
+}
+
+export interface GetAllFacilityServicelinesData {
+  getAllFacilityServicelines: GetAllFacilityServicelinesResponse;
+}

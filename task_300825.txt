@@ -1,0 +1,19 @@
+template
+-----------
+Navigaion Qn dropdown, remove required qn checkbox - live preview 
+option reorder - live, editModal
+two way binding (live,questionary node,edit pop up) 
+edit popup - outside click then old value patched from node , Fix:New edit text persist
+edit pop up next qn show in connections 
+score sum up to 1 
+start node with template name patched 
+on hard referesh , already created node should persist even w/o saving
+edge delete-backspace
+
+Assessment
+------------
+refer to dynamic render using referal text
+save as draft and save functionality rnd
+
+
+      
